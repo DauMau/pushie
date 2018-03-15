@@ -1,0 +1,8 @@
+[[constraint]]
+  name = "firebase.google.com/go"
+  version = "2.6.1"
+
+[[constraint]]
+  name = "github.com/sideshow/apns2"
+  version = "0.14.0"
+

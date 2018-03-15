@@ -1,0 +1,126 @@
+package google
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io/ioutil"
+	"net/http"
+	"os"
+	"regexp"
+
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
+	"golang.org/x/oauth2/jwt"
+
+	"github.com/valyala/fasthttp"
+
+	"firebase.google.com/go/messaging"
+	"google.golang.org/api/googleapi"
+)
+
+var (
+	projectExtractor = regexp.MustCompile(`"project_id": "([^"]+)",`)
+	errProjectID     = errors.New("project_id is missing from json")
+)
+
+// New creates a new FCM Client
+func New(credentials string) (*Client, error) {
+	if credentials == "" {
+		credentials = os.Getenv("GOOGLE_APPLICATION_CREDENTIALS")
+		if credentials == "" {
+			return nil, fmt.Errorf("No credentials nor $GOOGLE_APPLICATION_CREDENTIALS specified")
+		}
+	}
+	data, err := ioutil.ReadFile(credentials)
+	if err != nil {
+		return nil, err
+	}
+	matches := projectExtractor.FindSubmatch(data)
+	if len(matches) == 0 {
+		return nil, errProjectID
+	}
+	conf, err := google.JWTConfigFromJSON(data, "https://www.googleapis.com/auth/firebase.messaging")
+	if err != nil {
+		return nil, err
+	}
+	return &Client{
+		conf:      conf,
+		projectID: string(matches[1]),
+		client:    new(fasthttp.Client),
+	}, nil
+}
+
+// Client is a FCM client
+type Client struct {
+	conf      *jwt.Config
+	token     *oauth2.Token
+	projectID string
+	client    *fasthttp.Client
+}
+
+func (c *Client) checkToken() error {
+	if c.token != nil && c.token.Valid() {
+		return nil
+	}
+	t, err := c.conf.TokenSource(context.Background()).Token()
+	if err != nil {
+		return err
+	}
+	c.token = t
+	return nil
+}
+
+// Send makes a request to FCM and returns the message ID
+func (c *Client) Send(m *messaging.Message) (string, error) {
+	if err := c.checkToken(); err != nil {
+		return "", err
+	}
+	var (
+		req   = fasthttp.AcquireRequest()
+		uri   = fasthttp.AcquireURI()
+		query = fasthttp.AcquireArgs()
+		buff  = fasthttp.AcquireByteBuffer()
+		resp  = fasthttp.AcquireResponse()
+	)
+	defer func() {
+		fasthttp.ReleaseRequest(req)
+		fasthttp.ReleaseURI(uri)
+		fasthttp.ReleaseArgs(query)
+		fasthttp.ReleaseByteBuffer(buff)
+		fasthttp.ReleaseResponse(resp)
+	}()
+	req.Header.SetMethod(http.MethodPost)
+	req.SetRequestURI(fmt.Sprintf("https://fcm.googleapis.com/v1/projects/%s/messages:send", c.projectID))
+	req.Header.Set("Authorization", fmt.Sprintf("%s %s", c.token.TokenType, c.token.AccessToken))
+	req.Header.Set("Content-Type", "application/json")
+	if err := json.NewEncoder(buff).Encode(fcmRequest{Message: m}); err != nil {
+		return "", err
+	}
+	req.SetBody(buff.B)
+	if err := c.client.Do(req, resp); err != nil {
+		return "", err
+	}
+	if status := resp.StatusCode(); status != http.StatusOK {
+		var v struct {
+			Error googleapi.Error
+		}
+		if err := json.Unmarshal(resp.Body(), &v); err != nil {
+			return "", err
+		}
+		return "", &v.Error
+	}
+	var v struct {
+		Name string `json:"name"`
+	}
+	if err := json.Unmarshal(resp.Body(), &v); err != nil {
+		return "", err
+	}
+	return v.Name, nil
+}
+
+type fcmRequest struct {
+	ValidateOnly bool               `json:"validate_only,omitempty"`
+	Message      *messaging.Message `json:"message,omitempty"`
+}
