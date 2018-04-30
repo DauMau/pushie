@@ -3,6 +3,7 @@ package apple
 import (
 	"crypto/tls"
 	"errors"
+	"fmt"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -11,22 +12,30 @@ import (
 	"github.com/sideshow/apns2/certificate"
 )
 
-// New creates a new APNS2 Client
-func New(path string) (c *Client, err error) {
-	var cert tls.Certificate
-	switch strings.ToLower(filepath.Ext(path)) {
+// CertFile retuns a new certificate using a file
+func CertFile(path, password string) (tls.Certificate, error) {
+	switch ext := strings.ToLower(filepath.Ext(path)); ext {
 	case ".p12":
-		cert, err = certificate.FromP12File(path, "")
-		if err != nil {
-			return
-		}
+		return certificate.FromP12File(path, password)
 	case ".pem":
-		cert, err = certificate.FromPemFile(path, "")
-		if err != nil {
-			return
-		}
+		return certificate.FromPemFile(path, password)
+	default:
+		return tls.Certificate{}, fmt.Errorf("Unknown extension: %s", ext)
 	}
-	return &Client{client: apns2.NewClient(cert).Production()}, nil
+}
+
+// CertBytes retuns a new certificate using a bytes
+func CertBytes(bytes []byte, password string) (tls.Certificate, error) {
+	cert, err := certificate.FromP12Bytes(bytes, password)
+	if err != nil {
+		cert, err = certificate.FromPemBytes(bytes, password)
+	}
+	return cert, err
+}
+
+// New creates a new APNS2 Client
+func New(cert tls.Certificate) *Client {
+	return &Client{client: apns2.NewClient(cert).Production()}
 }
 
 // Client is a FCM client

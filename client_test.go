@@ -22,11 +22,11 @@ var m = Message{
 }
 
 func TestGoogle(t *testing.T) {
-	google, err := google.New("")
+	conf, projectID, err := google.ConfigFromFile("")
 	if err != nil {
 		t.Fatal(err)
 	}
-	var client = Client{Google: google}
+	var client = Client{Google: google.New(conf, projectID)}
 
 	id, err := client.SendGoogle(&m)
 	if err != nil {
@@ -36,11 +36,11 @@ func TestGoogle(t *testing.T) {
 }
 
 func TestApple(t *testing.T) {
-	apple, err := apple.New(os.Getenv("IOS_CERT"))
+	cert, err := apple.CertFile(os.Getenv("IOS_CERT"), os.Getenv("IOS_PASS"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	var client = Client{Apple: apple}
+	var client = Client{Apple: apple.New(cert)}
 
 	id, err := client.SendApple(&m)
 	if err != nil {

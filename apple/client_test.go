@@ -10,11 +10,11 @@ import (
 
 func TestClient(t *testing.T) {
 	t.Log(os.Getenv("IOS_TOKEN"))
-	c, err := New(os.Getenv("IOS_CERT"))
+	cert, err := CertFile(os.Getenv("IOS_CERT"), os.Getenv("IOS_PASS"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	id, err := c.Send(&apns2.Notification{
+	id, err := New(cert).Send(&apns2.Notification{
 		Payload:     payload.NewPayload().AlertTitle("Hello").AlertBody("Hello from the other side"),
 		DeviceToken: os.Getenv("IOS_TOKEN"),
 		Priority:    apns2.PriorityHigh,

@@ -9,11 +9,11 @@ import (
 )
 
 func TestClient(t *testing.T) {
-	c, err := New("")
+	conf, projectID, err := ConfigFromFile("")
 	if err != nil {
 		t.Fatal(err)
 	}
-	id, err := c.Send(&messaging.Message{
+	id, err := New(conf, projectID).Send(&messaging.Message{
 		Data:  map[string]string{"time": time.Now().String(), "sender": "Test Sender"},
 		Token: os.Getenv("FCM_REGID"),
 		Android: &messaging.AndroidConfig{

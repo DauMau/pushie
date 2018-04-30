@@ -25,31 +25,41 @@ var (
 	errProjectID     = errors.New("project_id is missing from json")
 )
 
-// New creates a new FCM Client
-func New(credentials string) (*Client, error) {
-	if credentials == "" {
-		credentials = os.Getenv("GOOGLE_APPLICATION_CREDENTIALS")
-		if credentials == "" {
-			return nil, fmt.Errorf("No credentials nor $GOOGLE_APPLICATION_CREDENTIALS specified")
+// ConfigFromFile read configuration from a file
+func ConfigFromFile(path string) (*jwt.Config, string, error) {
+	if path == "" {
+		path = os.Getenv("GOOGLE_APPLICATION_CREDENTIALS")
+		if path == "" {
+			return nil, "", fmt.Errorf("No credentials nor $GOOGLE_APPLICATION_CREDENTIALS specified")
 		}
 	}
-	data, err := ioutil.ReadFile(credentials)
+	bytes, err := ioutil.ReadFile(path)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
-	matches := projectExtractor.FindSubmatch(data)
+	return ConfigFromBytes(bytes)
+}
+
+// ConfigFromBytes read configuration from bytes
+func ConfigFromBytes(bytes []byte) (*jwt.Config, string, error) {
+	matches := projectExtractor.FindSubmatch(bytes)
 	if len(matches) == 0 {
-		return nil, errProjectID
+		return nil, "", errProjectID
 	}
-	conf, err := google.JWTConfigFromJSON(data, "https://www.googleapis.com/auth/firebase.messaging")
+	conf, err := google.JWTConfigFromJSON(bytes, "https://www.googleapis.com/auth/firebase.messaging")
 	if err != nil {
-		return nil, err
+		return nil, "", errProjectID
 	}
+	return conf, string(matches[1]), nil
+}
+
+// New creates a new FCM Client
+func New(conf *jwt.Config, projectID string) *Client {
 	return &Client{
 		conf:      conf,
-		projectID: string(matches[1]),
+		projectID: projectID,
 		client:    new(fasthttp.Client),
-	}, nil
+	}
 }
 
 // Client is a FCM client
