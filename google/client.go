@@ -21,7 +21,7 @@ import (
 )
 
 var (
-	projectExtractor = regexp.MustCompile(`"project_id": "([^"]+)",`)
+	projectExtractor = regexp.MustCompile(`"project_id":\s*"([^"]+)",`)
 	errProjectID     = errors.New("project_id is missing from json")
 )
 
