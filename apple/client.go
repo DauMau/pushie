@@ -34,8 +34,14 @@ func CertBytes(bytes []byte, password string) (tls.Certificate, error) {
 }
 
 // New creates a new APNS2 Client
-func New(cert tls.Certificate) *Client {
-	return &Client{client: apns2.NewClient(cert).Production()}
+func New(cert tls.Certificate, production bool) *Client {
+	c := apns2.NewClient(cert)
+	if production {
+		c = c.Production()
+	} else {
+		c = c.Development()
+	}
+	return &Client{client: c}
 }
 
 // Client is a FCM client

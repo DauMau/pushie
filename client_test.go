@@ -40,7 +40,7 @@ func TestApple(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var client = Client{Apple: apple.New(cert)}
+	var client = Client{Apple: apple.New(cert, os.Getenv("IOS_ENV") == "prod")}
 
 	id, err := client.SendApple(&m)
 	if err != nil {

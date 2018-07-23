@@ -14,7 +14,7 @@ func TestClient(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	id, err := New(cert).Send(&apns2.Notification{
+	id, err := New(cert, os.Getenv("IOS_ENV") == "prod").Send(&apns2.Notification{
 		Payload:     payload.NewPayload().AlertTitle("Hello").AlertBody("Hello from the other side"),
 		DeviceToken: os.Getenv("IOS_TOKEN"),
 		Priority:    apns2.PriorityHigh,
