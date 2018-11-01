@@ -31,7 +31,9 @@ func (m Message) ToFirebase() *firebase.Message {
 	}
 	data := map[string]string{}
 	for k, v := range m.Data {
-		data[k] = fmt.Sprintf("%v", v)
+		if v != nil {
+			data[k] = fmt.Sprintf("%v", v)
+		}
 	}
 	return &firebase.Message{
 		Topic: m.Google.Topic,
@@ -55,12 +57,14 @@ func (m Message) ToApns() *apns.Notification {
 	dataAps := map[string]interface{}{}
 	dataHer := map[string]interface{}{}
 	for k, v := range m.Data {
-		switch k {
-		case "alert", "badge", "category", "mutable-content", "sound":
-			dataAps[k] = v
-		default:
-			dataAps[k] = v
-			dataHer[k] = v
+		if v != nil {
+			switch k {
+			case "alert", "badge", "category", "mutable-content", "sound":
+				dataAps[k] = v
+			default:
+				dataAps[k] = v
+				dataHer[k] = v
+			}
 		}
 	}
 	payload = payload.Custom("aps", dataAps)
