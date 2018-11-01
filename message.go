@@ -1,6 +1,7 @@
 package pushie
 
 import (
+	"fmt"
 	"time"
 
 	firebase "firebase.google.com/go/messaging"
@@ -19,7 +20,7 @@ type Message struct {
 	Body       string        `json:"body,omitempty"`
 	CollapseID string        `json:"collapse_id,omitempty"`
 
-	Data map[string]string `json:"data,omitempty"`
+	Data map[string]interface{} `json:"data,omitempty"`
 }
 
 // ToFirebase converts the Message to a the Firebase version
@@ -28,11 +29,15 @@ func (m Message) ToFirebase() *firebase.Message {
 	if m.TTL != 0 {
 		ttl = &m.TTL
 	}
+	data := map[string]string{}
+	for k, v := range m.Data {
+		data[k] = fmt.Sprintf("%v", v)
+	}
 	return &firebase.Message{
 		Topic: m.Google.Topic,
 		Token: m.Google.Device,
 		Android: &firebase.AndroidConfig{
-			Data: m.Data,
+			Data: data,
 			Notification: &firebase.AndroidNotification{
 				Title: m.Title,
 				Body:  m.Body,
@@ -46,10 +51,20 @@ func (m Message) ToFirebase() *firebase.Message {
 
 // ToApns converts the Message to a the Apns version
 func (m Message) ToApns() *apns.Notification {
-	payload := payload.NewPayload().AlertTitle(m.Title).AlertBody(m.Body)
+	payload := payload.NewPayload()
+	dataAps := map[string]interface{}{}
+	dataHer := map[string]interface{}{}
 	for k, v := range m.Data {
-		payload = payload.Custom(k, v)
+		switch k {
+		case "alert", "badge", "category", "mutable-content", "sound":
+			dataAps[k] = v
+		default:
+			dataAps[k] = v
+			dataHer[k] = v
+		}
 	}
+	payload = payload.Custom("aps", dataAps)
+	payload = payload.Custom("her", dataHer)
 	var exp time.Time
 	if m.TTL > 0 {
 		exp = time.Now().Add(m.TTL)
