@@ -19,6 +19,7 @@ type Message struct {
 	Title      string        `json:"title,omitempty"`
 	Body       string        `json:"body,omitempty"`
 	CollapseID string        `json:"collapse_id,omitempty"`
+	IsData     bool          `json:"is_data,omitempty"`
 
 	Data map[string]interface{} `json:"data,omitempty"`
 }
@@ -35,18 +36,25 @@ func (m Message) ToFirebase() *firebase.Message {
 			data[k] = fmt.Sprintf("%v", v)
 		}
 	}
+	var notification *firebase.AndroidNotification
+	if !m.IsData {
+		notification = &firebase.AndroidNotification{
+			Title: m.Title,
+			Body:  m.Body,
+		}
+	} else {
+		data["title"] = m.Title
+		data["message"] = m.Body
+	}
 	return &firebase.Message{
 		Topic: m.Google.Topic,
 		Token: m.Google.Device,
 		Android: &firebase.AndroidConfig{
-			Data: data,
-			Notification: &firebase.AndroidNotification{
-				Title: m.Title,
-				Body:  m.Body,
-			},
-			TTL:         ttl,
-			CollapseKey: m.CollapseID,
-			Priority:    m.Priority.String(),
+			Data:         data,
+			Notification: notification,
+			TTL:          ttl,
+			CollapseKey:  m.CollapseID,
+			Priority:     m.Priority.String(),
 		},
 	}
 }
@@ -68,7 +76,9 @@ func (m Message) ToApns() *apns.Notification {
 		}
 	}
 	payload = payload.Custom("aps", dataAps)
-	payload = payload.Custom("her", dataHer)
+	if m.IsData {
+		payload = payload.Custom("her", dataHer)
+	}
 	var exp time.Time
 	if m.TTL > 0 {
 		exp = time.Now().Add(m.TTL)
