@@ -50,13 +50,13 @@ type Client struct {
 }
 
 // Send makes a request to APNS and returns the message ID
-func (c *Client) Send(m *apns2.Notification) (string, error) {
+func (c *Client) Send(m *apns2.Notification) (string, int, error) {
 	resp, err := c.client.Push(m)
 	if err != nil {
-		return "", err
+		return "", http.StatusInternalServerError, err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return "", errors.New(resp.Reason)
+		return "", resp.StatusCode, errors.New(resp.Reason)
 	}
-	return resp.ApnsID, nil
+	return resp.ApnsID, http.StatusOK, nil
 }

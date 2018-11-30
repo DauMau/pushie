@@ -83,9 +83,9 @@ func (c *Client) checkToken() error {
 }
 
 // Send makes a request to FCM and returns the message ID
-func (c *Client) Send(m *messaging.Message) (string, error) {
+func (c *Client) Send(m *messaging.Message) (string, int, error) {
 	if err := c.checkToken(); err != nil {
-		return "", err
+		return "", http.StatusInternalServerError, err
 	}
 	var (
 		req   = fasthttp.AcquireRequest()
@@ -106,28 +106,28 @@ func (c *Client) Send(m *messaging.Message) (string, error) {
 	req.Header.Set("Authorization", fmt.Sprintf("%s %s", c.token.TokenType, c.token.AccessToken))
 	req.Header.Set("Content-Type", "application/json")
 	if err := json.NewEncoder(buff).Encode(fcmRequest{Message: m}); err != nil {
-		return "", err
+		return "", http.StatusInternalServerError, err
 	}
 	req.SetBody(buff.B)
 	if err := c.client.Do(req, resp); err != nil {
-		return "", err
+		return "", http.StatusInternalServerError, err
 	}
 	if status := resp.StatusCode(); status != http.StatusOK {
 		var v struct {
 			Error googleapi.Error
 		}
 		if err := json.Unmarshal(resp.Body(), &v); err != nil {
-			return "", err
+			return "", http.StatusInternalServerError, err
 		}
-		return "", &v.Error
+		return "", status, &v.Error
 	}
 	var v struct {
 		Name string `json:"name"`
 	}
 	if err := json.Unmarshal(resp.Body(), &v); err != nil {
-		return "", err
+		return "", http.StatusInternalServerError, err
 	}
-	return v.Name, nil
+	return v.Name, http.StatusOK, nil
 }
 
 type fcmRequest struct {

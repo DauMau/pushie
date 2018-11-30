@@ -1,6 +1,8 @@
 package pushie
 
 import (
+	"errors"
+	"net/http"
 	"os"
 	"testing"
 
@@ -28,9 +30,12 @@ func TestGoogle(t *testing.T) {
 	}
 	var client = Client{Google: google.New(conf, projectID)}
 
-	id, err := client.SendGoogle(&m)
+	id, code, err := client.SendGoogle(&m)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if code != http.StatusOK {
+		t.Fatal(errors.New("Bad http status"))
 	}
 	t.Log("message_id", id)
 }
@@ -42,9 +47,12 @@ func TestApple(t *testing.T) {
 	}
 	var client = Client{Apple: apple.New(cert, os.Getenv("IOS_ENV") == "prod")}
 
-	id, err := client.SendApple(&m)
+	id, code, err := client.SendApple(&m)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if code != http.StatusOK {
+		t.Fatal(errors.New("Bad http status"))
 	}
 	t.Log("message_id", id)
 }

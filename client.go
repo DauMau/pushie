@@ -2,6 +2,7 @@ package pushie
 
 import (
 	"errors"
+	"net/http"
 
 	"github.com/DauMau/pushie/apple"
 	"github.com/DauMau/pushie/google"
@@ -19,17 +20,17 @@ type Client struct {
 }
 
 // SendGoogle calls to Google service
-func (c *Client) SendGoogle(m *Message) (string, error) {
+func (c *Client) SendGoogle(m *Message) (string, int, error) {
 	if m.Google == nil {
-		return "", ErrDestination
+		return "", http.StatusInternalServerError, ErrDestination
 	}
 	return c.Google.Send(m.ToFirebase())
 }
 
 // SendApple calls to Apple service
-func (c *Client) SendApple(m *Message) (string, error) {
+func (c *Client) SendApple(m *Message) (string, int, error) {
 	if m.Apple == nil {
-		return "", ErrDestination
+		return "", http.StatusInternalServerError, ErrDestination
 	}
 	return c.Apple.Send(m.ToApns())
 }

@@ -1,6 +1,8 @@
 package apple
 
 import (
+	"errors"
+	"net/http"
 	"os"
 	"testing"
 
@@ -14,7 +16,7 @@ func TestClient(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	id, err := New(cert, os.Getenv("IOS_ENV") == "prod").Send(&apns2.Notification{
+	id, code, err := New(cert, os.Getenv("IOS_ENV") == "prod").Send(&apns2.Notification{
 		Payload:     payload.NewPayload().AlertTitle("Hello").AlertBody("Hello from the other side"),
 		DeviceToken: os.Getenv("IOS_TOKEN"),
 		Priority:    apns2.PriorityHigh,
@@ -22,6 +24,9 @@ func TestClient(t *testing.T) {
 	})
 	if err != nil {
 		t.Fatal(err)
+	}
+	if code != http.StatusOK {
+		t.Fatal(errors.New("Bad http status"))
 	}
 	t.Log("message_id", id)
 }
